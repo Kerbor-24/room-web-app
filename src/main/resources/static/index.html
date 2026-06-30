@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Room Management View</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 30px; }
+        h2 { color: #333; border-bottom: 2px solid #0056b3; padding-bottom: 10px; }
+        .control-panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; width: 200px; font-size: 14px; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; color: white; }
+        .btn-add { background-color: #28a745; }
+        .btn-add:hover { background-color: #218838; }
+        .btn-toggle { background-color: #ffc107; color: #212529; padding: 6px 12px; font-size: 12px; }
+        .btn-toggle:hover { background-color: #e0a800; }
+        .btn-delete { background-color: #dc3545; padding: 6px 12px; font-size: 12px; margin-left: 5px; }
+        .btn-delete:hover { background-color: #c82333; }
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #0056b3; color: white; }
+        tr:hover { background-color: #f1f1f1; }
+        .status-badge { padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-block; width: 80px; text-align: center; }
+        .available { background-color: #d4edda; color: #155724; }
+        .occupied { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+    <h2>🌐 Complete Web Room CRUD Operations Deck</h2>
+    
+    <div class="control-panel">
+        <label for="roomNumberInput"><strong>Create New Room:</strong></label>
+        <input type="text" id="roomNumberInput" placeholder="Enter Room Identifier (e.g. Lab-301)">
+        <button class="btn-add" onclick="submitNewRoom()">Add Room</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Room Identifier</th>
+                <th>Layout Capacity</th>
+                <th>Current Allocation Status</th>
+                <th>Administrative Actions</th>
+            </tr>
+        </thead>
+        <tbody id="roomTableBody">
+            </tbody>
+    </table>
+
+    <script>
+        async function fetchLiveRooms() {
+            try {
+                const response = await fetch('/api/rooms');
+                const rooms = await response.json();
+                const tableBody = document.getElementById('roomTableBody');
+                tableBody.innerHTML = ''; 
+                
+                rooms.forEach(room => {
+                    const isAvailable = room.status.trim().toLowerCase() === 'available';
+                    const badgeClass = isAvailable ? 'available' : 'occupied';
+                    
+                    const row = `
+                        <tr>
+                            <td><strong>${room.roomNumber}</strong></td>
+                            <td>${room.capacity} seats</td>
+                            <td><span class="status-badge ${badgeClass}">${room.status}</span></td>
+                            <td>
+                                <button class="btn-toggle" onclick="toggleRoom('${room.roomNumber}')">Toggle Status</button>
+                                <button class="btn-delete" onclick="deleteRoom('${room.roomNumber}')">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+            } catch (error) {
+                console.error("Transmission Error:", error);
+            }
+        }
+
+        async function submitNewRoom() {
+            const inputField = document.getElementById('roomNumberInput');
+            const roomName = inputField.value.trim();
+            if (!roomName) { alert("Room identifier cannot be blank!"); return; }
+
+            try {
+                const response = await fetch(`/api/rooms/add?roomNumber=${encodeURIComponent(roomName)}`, { method: 'POST' });
+                if (response.ok) { inputField.value = ''; fetchLiveRooms(); }
+            } catch (error) { console.error("Submission failed:", error); }
+        }
+
+        async function toggleRoom(roomNumber) {
+            try {
+                const response = await fetch(`/api/rooms/toggle?roomNumber=${encodeURIComponent(roomNumber)}`, { method: 'POST' });
+                if (response.ok) fetchLiveRooms();
+            } catch (error) { console.error("Toggle action failed:", error); }
+        }
+
+        async function deleteRoom(roomNumber) {
+            if (!confirm(`Are you certain you want to purge room ${roomNumber}?`)) return;
+            try {
+                const response = await fetch(`/api/rooms/delete?roomNumber=${encodeURIComponent(roomNumber)}`, { method: 'POST' });
+                if (response.ok) fetchLiveRooms();
+            } catch (error) { console.error("Delete action failed:", error); }
+        }
+
+        window.onload = fetchLiveRooms;
+    </script>
+</body>
+</html>
